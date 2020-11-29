@@ -1,6 +1,9 @@
-'From Cuis 5.0 [latest update: #4384] on 25 November 2020 at 7:43:35 am'!
-'Description Primer version - Falta el recepcionist'!
-!provides: 'OpenChat' 1 0!
+'From Cuis 5.0 [latest update: #4384] on 29 November 2020 at 1:57:08 am'!
+'Description Recepcionista y WebServer '!
+!provides: 'OpenChat' 1 2!
+!requires: 'Identities-UUID' 1 8 nil!
+!requires: 'WebClient' 1 19 nil!
+!requires: 'JSON' 1 19 nil!
 SystemOrganization addCategory: 'OpenChat'!
 
 
@@ -34,6 +37,16 @@ TestCase subclass: #PublisherTest
 PublisherTest class
 	instanceVariableNames: ''!
 
+!classDefinition: #RestReceptionistTest category: 'OpenChat'!
+TestCase subclass: #RestReceptionistTest
+	instanceVariableNames: 'receptionist testObjects'
+	classVariableNames: ''
+	poolDictionaries: ''
+	category: 'OpenChat'!
+!classDefinition: 'RestReceptionistTest class' category: 'OpenChat'!
+RestReceptionistTest class
+	instanceVariableNames: ''!
+
 !classDefinition: #UserTest category: 'OpenChat'!
 TestCase subclass: #UserTest
 	instanceVariableNames: 'testObjects'
@@ -54,14 +67,24 @@ Object subclass: #LoadExample
 LoadExample class
 	instanceVariableNames: ''!
 
-!classDefinition: #ManualClock category: 'OpenChat'!
-Object subclass: #ManualClock
-	instanceVariableNames: 'now'
+!classDefinition: #LoadExampleWithReceptionist category: 'OpenChat'!
+Object subclass: #LoadExampleWithReceptionist
+	instanceVariableNames: 'userNamePrefix followers userName'
 	classVariableNames: ''
 	poolDictionaries: ''
 	category: 'OpenChat'!
-!classDefinition: 'ManualClock class' category: 'OpenChat'!
-ManualClock class
+!classDefinition: 'LoadExampleWithReceptionist class' category: 'OpenChat'!
+LoadExampleWithReceptionist class
+	instanceVariableNames: ''!
+
+!classDefinition: #OpenChatServer category: 'OpenChat'!
+Object subclass: #OpenChatServer
+	instanceVariableNames: 'receptionist'
+	classVariableNames: ''
+	poolDictionaries: ''
+	category: 'OpenChat'!
+!classDefinition: 'OpenChatServer class' category: 'OpenChat'!
+OpenChatServer class
 	instanceVariableNames: ''!
 
 !classDefinition: #OpenChatSystem category: 'OpenChat'!
@@ -94,6 +117,26 @@ Object subclass: #Publisher
 Publisher class
 	instanceVariableNames: ''!
 
+!classDefinition: #ReceptionistResponse category: 'OpenChat'!
+Object subclass: #ReceptionistResponse
+	instanceVariableNames: 'status body'
+	classVariableNames: ''
+	poolDictionaries: ''
+	category: 'OpenChat'!
+!classDefinition: 'ReceptionistResponse class' category: 'OpenChat'!
+ReceptionistResponse class
+	instanceVariableNames: ''!
+
+!classDefinition: #RestReceptionist category: 'OpenChat'!
+Object subclass: #RestReceptionist
+	instanceVariableNames: 'system idsByUser idsByPublication userNameById'
+	classVariableNames: ''
+	poolDictionaries: ''
+	category: 'OpenChat'!
+!classDefinition: 'RestReceptionist class' category: 'OpenChat'!
+RestReceptionist class
+	instanceVariableNames: ''!
+
 !classDefinition: #TestObjectsBucket category: 'OpenChat'!
 Object subclass: #TestObjectsBucket
 	instanceVariableNames: 'clock'
@@ -124,6 +167,22 @@ Object subclass: #UserCard
 UserCard class
 	instanceVariableNames: ''!
 
+
+!Publication methodsFor: 'as yet unclassified' stamp: 'HAW 11/29/2020 01:37:20'!
+printOn: aStream
+
+	aStream
+		nextPutAll: message;
+		nextPutAll: ' by '; 
+		nextPutAll: self publisherRelatedUser name;
+		nextPutAll: ' at '.
+		
+	publicationTime printWithoutOffsetOn: aStream ! !
+
+!User methodsFor: 'name' stamp: 'HAW 11/25/2020 18:42:49'!
+name
+
+	^name! !
 
 !OpenChatSystemTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 17:20:58'!
 test01_createSystemHasNoUsers
@@ -166,7 +225,7 @@ test03_canRegisterManyUsers
 	self assert: 2 equals: system numberOfUsers.
 	! !
 
-!OpenChatSystemTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 17:39:02'!
+!OpenChatSystemTest methodsFor: 'tests' stamp: 'HAW 11/25/2020 18:49:57'!
 test04_canNotRegisterSameUserTwice
 	
 	system := self createSystem.
@@ -176,7 +235,7 @@ test04_canNotRegisterSameUserTwice
 		should: [ self registerPepeSanchez ]
 		raise: ModelException - MessageNotUnderstood 
 		withExceptionDo: [ :aModelException |
-			self assert: system canNotRegisterSameUserTwice equals: aModelException messageText.
+			self assert: OpenChatSystem canNotRegisterSameUserTwice equals: aModelException messageText.
 			
 			self assert: system hasUsers.
 			self assert: (system hasUserNamed: testObjects pepeSanchezName).
@@ -264,7 +323,7 @@ test11_canFollowRegisteredUser
 	self assert: 1 equals: followers size.
 	self assert: follower equals: followers first! !
 
-!OpenChatSystemTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 20:04:09'!
+!OpenChatSystemTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 21:20:14'!
 test12_canGetWallOfRegisteredUser
 	
 	| followedPublication followerPublication wall |
@@ -275,7 +334,7 @@ test12_canGetWallOfRegisteredUser
 	
 	system userNamed: testObjects juanPerezName follows: testObjects pepeSanchezName.
 	followedPublication := system publish: 'hello' forUserNamed: testObjects pepeSanchezName.
-	testObjects advanceTimeBy: 1*second.
+	testObjects advanceTimeBy: (Duration seconds: 1).
 	followerPublication := system publish: 'bye' forUserNamed: testObjects juanPerezName.
 	
 	wall := system wallOfUserNamed: testObjects pepeSanchezName.
@@ -441,7 +500,7 @@ test03_publisherCanNotFollowSelf
 	
 	! !
 
-!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 19:45:43'!
+!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/25/2020 20:13:07'!
 test04_publisherCanNotFollowSamePublisherTwice
 
 	| followed follower |
@@ -454,7 +513,7 @@ test04_publisherCanNotFollowSamePublisherTwice
 		should: [ followed followedBy: follower ]
 		raise: ModelException 
 		withExceptionDo: [ :aModelException |
-			self assert: followed canNotBeFollowedBySameFollowerTwice equals: aModelException messageText.
+			self assert: Publisher canNotBeFollowedBySameFollowerTwice equals: aModelException messageText.
 			self assert: (followed isFollowedBy: follower).
 			self assert: 1 equals: followed numberOfFollowers ]
 	! !
@@ -488,17 +547,17 @@ test06_publisherCanPublishMessages
 	self deny: (publication wasPublishedAt: (publicationTime next: 1*second)).
 	! !
 
-!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 20:06:36'!
+!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/29/2020 01:51:00'!
 test07_timelineHasPublisherPublicationsSortedWithLatestPublicationsFirst
 
 	| createdPusblisher message firstPublication publicationTime secondPublication timeline |
 	
 	createdPusblisher := self createPepeSanchez.
-	publicationTime := GregorianDateTime now.
+	publicationTime := DateAndTime now.
 	message := 'a message'.
 	
 	firstPublication := createdPusblisher publish: message at: publicationTime.
-	secondPublication := createdPusblisher publish: message at: (publicationTime next: 1*second).
+	secondPublication := createdPusblisher publish: message at: publicationTime + (Duration seconds: 1).
 	
 	timeline := createdPusblisher timeline.
 	
@@ -506,13 +565,13 @@ test07_timelineHasPublisherPublicationsSortedWithLatestPublicationsFirst
 	self assert: secondPublication equals: timeline first.
 	self assert: firstPublication equals: timeline second! !
 
-!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 16:45:36'!
+!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/29/2020 01:51:24'!
 test08_wallContainsPublisherPublications
 
 	| createdPusblisher message firstPublication publicationTime timeline |
 	
 	createdPusblisher := self createPepeSanchez.
-	publicationTime := GregorianDateTime now.
+	publicationTime := DateAndTime now.
 	message := 'a message'.
 	
 	firstPublication := createdPusblisher publish: message at: publicationTime.
@@ -523,7 +582,7 @@ test08_wallContainsPublisherPublications
 	self assert: firstPublication equals: timeline first.
 	! !
 
-!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 19:47:11'!
+!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/29/2020 01:51:35'!
 test09_wallContainsFollowersPublications
 
 	| followed message firstPublication publicationTime timeline follower |
@@ -532,7 +591,7 @@ test09_wallContainsFollowersPublications
 	follower := self createJuanPerez.
 	followed followedBy: follower.
 	
-	publicationTime := GregorianDateTime now.
+	publicationTime := DateAndTime now.
 	message := 'a message'.
 	
 	firstPublication := follower publish: message at: publicationTime.
@@ -543,7 +602,7 @@ test09_wallContainsFollowersPublications
 	self assert: firstPublication equals: timeline first.
 	! !
 
-!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 20:06:54'!
+!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/29/2020 01:52:23'!
 test10_wallContainsFollowersPublicationsWithLatestPublicationsFirst
 
 	| followed message firstPublication publicationTime timeline follower secondPublication thirdPublication |
@@ -552,12 +611,12 @@ test10_wallContainsFollowersPublicationsWithLatestPublicationsFirst
 	follower := self createJuanPerez.
 	followed followedBy: follower.
 	
-	publicationTime := GregorianDateTime now.
+	publicationTime := DateAndTime now.
 	message := 'a message'.
 	
 	firstPublication := followed publish: message at: publicationTime.
-	secondPublication := follower publish: message at: (publicationTime next: 1*second).
-	thirdPublication := followed publish: message at: (publicationTime next: 2*second).
+	secondPublication := follower publish: message at: publicationTime + (Duration seconds: 1).
+	thirdPublication := followed publish: message at: publicationTime + (Duration seconds: 2).
 	
 	timeline := followed wall.
 	
@@ -661,6 +720,386 @@ setUp
 
 	testObjects := TestObjectsBucket new! !
 
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/29/2020 00:35:10'!
+test01_canRegisterUserWithValidData
+
+	| response |
+	
+	receptionist := self createReceptionist.
+	
+	response := self registerJuanPerez.
+	
+	self assertJuanPerezIn: response withStatus: 201 ! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/25/2020 18:50:10'!
+test02_canNotRegisterDuplicatedUser
+
+	| response |
+	
+	receptionist := self createReceptionist.
+	
+	self registerJuanPerez.
+	response := self registerJuanPerez.
+	
+	self assert: (response hasStatus: 400).
+	self assert: OpenChatSystem canNotRegisterSameUserTwice equals: response body
+	! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/25/2020 18:56:10'!
+test03_canLoginRegisteredUserWithValidCredentials
+
+	| response |
+	
+	receptionist := self createReceptionist.
+	self registerJuanPerez.
+	
+	response := receptionist login: testObjects juanPerezLoginBodyAsJson.
+	
+	self assertJuanPerezIn: response withStatus: 200. ! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 19:17:44'!
+test04_canNotLoginWithInvalidCredentials
+
+	| response invalidLoginBody |
+	
+	receptionist := self createReceptionist.
+	self registerJuanPerez.
+	
+	invalidLoginBody := testObjects juanPerezLoginBodyAsJson.
+	invalidLoginBody at: #password put: testObjects juanPerezPassword, 'x'.
+	
+	response := receptionist login: invalidLoginBody.
+	
+	self assert: (response hasStatus: 400).
+	self assert: RestReceptionist invalidCredentials equals: response body! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/25/2020 19:01:34'!
+test05_usersReturnsAllRegisteredUsers
+
+	| response |
+	
+	receptionist := self createReceptionist.
+	self registerJuanPerez.
+	
+	response := receptionist users.
+	
+	self assertIsArrayWithJuanPerezOnly: response
+	! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/25/2020 19:41:03'!
+test06_registeredUserCanFollowAnotherRegisteredUser
+
+	self makePepeSanchezFollowJuanPerezAndAssert: [ :response :followingsBody :followedResponse :followerResponse |
+		self assert: (response hasStatus: 201).
+		self assert: RestReceptionist followingsCreated equals: response body ]! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/25/2020 20:13:48'!
+test07_canNotFollowAnAlreadyFollowedUser
+
+        self makePepeSanchezFollowJuanPerezAndAssert: [ :response :followingsBodyAsJson :followedResponse :followerResponse | 
+		| secondResponse |
+		secondResponse := receptionist followings: followingsBodyAsJson.
+
+                self assert: (secondResponse hasStatus: 400).
+                self assert: Publisher canNotBeFollowedBySameFollowerTwice equals: secondResponse body ]! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/25/2020 20:16:05'!
+test08_followersReturnsUserFollowers
+
+        self makePepeSanchezFollowJuanPerezAndAssert: [ :response :followingsBodyAsJson :followedResponse :followerResponse | 
+		| followersResponse | 
+		
+		followersResponse := receptionist followersOf: followedResponse idFromBody.
+		
+		self assertIsArrayWithJuanPerezOnly: followersResponse ]! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 21:14:33'!
+test08__canNotGetFollowersOfNotRegisteredUser
+
+        | followersResponse | 
+		
+	receptionist := self createReceptionist.
+	followersResponse := receptionist followersOf: ''.
+		
+	self assert: (followersResponse hasStatus: 400).
+	self assert: RestReceptionist invalidCredentials equals: followersResponse body! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 20:03:20'!
+test09_registeredUserCanPublishAppropriateMessage
+
+        | publicationMessage publicationResponse registeredUserResponse responseBody |
+
+	receptionist := self createReceptionist.
+	registeredUserResponse := self registerJuanPerez.
+
+	publicationMessage := 'hello'.
+	publicationResponse := self publish: publicationMessage of: registeredUserResponse.
+
+	self assert: (publicationResponse hasStatus: 201).
+	responseBody := publicationResponse body.
+	self deny: (responseBody at: #postId) isEmpty.
+	self assert: registeredUserResponse idFromBody equals: (responseBody at: #userId).
+	self assert: publicationMessage equals: (responseBody at: #text).
+	self assert: self formattedNow equals: (responseBody at: #dateTime).
+	self assert: 0 equals: (responseBody at: #likes) asInteger! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 20:03:32'!
+test10_canNotPublishInappropriateWords
+
+	| publicationResponse registeredUserResponse |
+	
+	receptionist := self createReceptionist.
+	registeredUserResponse := self registerJuanPerez.
+
+	publicationResponse := self publish: 'elephant' of: registeredUserResponse.
+
+	self assert: (publicationResponse hasStatus: 400).
+	self assert: Publication inappropriateWord equals: publicationResponse body
+! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 20:07:40'!
+test11_invalidUserCanNotPublish
+
+	| invalidUserId publicationResponse |
+	
+	receptionist := self createReceptionist.
+
+	invalidUserId := ''.
+	publicationResponse := receptionist addPublication: (testObjects publicationBodyAsJsonFor: 'something') of: invalidUserId.
+
+	self assert: (publicationResponse hasStatus:400).
+	self assert: RestReceptionist invalidCredentials equals: publicationResponse body! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 20:13:41'!
+test12_timelineReturnsUserPublications
+
+	| publicationResponse registeredUserResponse timelineResponse body publicationAsJson |
+	
+	receptionist := self createReceptionist.
+	registeredUserResponse := self registerJuanPerez.
+	publicationResponse := self publish: 'hello' of: registeredUserResponse.
+
+	timelineResponse := receptionist timelineOf: registeredUserResponse idFromBody.
+
+	self assert: (timelineResponse hasStatus: 200).
+	body := timelineResponse body.
+	self assert: 1 equals: body size.
+	
+	publicationAsJson := publicationResponse body.
+	self assert: publicationAsJson equals: body first
+
+	! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 21:08:55'!
+test12__canNotAskTimelineOfNotRegisteredUser
+
+	| timelineResponse |
+	
+	receptionist := self createReceptionist.
+	
+	timelineResponse := receptionist timelineOf: ''.
+
+	self assert: (timelineResponse hasStatus: 400).
+	self assert: RestReceptionist invalidCredentials equals: timelineResponse body.
+	
+	! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 20:33:22'!
+test13_wallReturnsFollowedAndFollowersPublications
+
+        | followedPublicationAsJson followedPublicationResponse followerPublicationAsJson followerPublicationResponse wallResponse |
+
+	self makePepeSanchezFollowJuanPerezAndAssert: [ :response :followingsBodyAsJson :followedResponse :followerResponse | 
+		followedPublicationResponse := self publish: 'hello' of: followedResponse.
+		followerPublicationResponse := self publish: 'bye' of: followerResponse.
+		
+		wallResponse := receptionist wallOf: followedResponse idFromBody.
+		self assert: (wallResponse hasStatus: 200).
+		self assert: 2 equals: wallResponse body size.
+		
+		followedPublicationAsJson := followedPublicationResponse body.
+		self assert: followedPublicationAsJson equals: wallResponse body first.
+		
+		followerPublicationAsJson := followerPublicationResponse body.
+		self assert: followerPublicationAsJson equals: wallResponse body second.]! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 21:09:27'!
+test13__canNotAskWallOfNotRegisteredUser
+
+	| timelineResponse |
+	
+	receptionist := self createReceptionist.
+	
+	timelineResponse := receptionist wallOf: ''.
+
+	self assert: (timelineResponse hasStatus: 400).
+	self assert: RestReceptionist invalidCredentials equals: timelineResponse body.
+	
+	! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 20:44:42'!
+test14_userCanLikePublication
+
+	| likeResponse likerUserResponse publicationResponse publisherUserResponse |
+	
+	receptionist := self createReceptionist.
+	publisherUserResponse := self registerJuanPerez.
+	likerUserResponse := self registerPepeSanchez.
+
+	publicationResponse := self publish: 'Hello' of: publisherUserResponse.
+	likeResponse := receptionist 
+		publicationIdentifiedAs: (self publicationIdFrom: publicationResponse)
+		likedBy: (self likerAsJsonOf: likerUserResponse).
+
+	self assert: (likeResponse hasStatus: 200).
+	self assert: 1 equals: (likeResponse body at: #likes)! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 20:54:17'!
+test15_notRegisteredUserCanNotLikePublication
+
+	| likeResponse publicationResponse publisherUserResponse invalidLikerAsJson |
+	
+	receptionist := self createReceptionist.
+	publisherUserResponse := self registerJuanPerez.
+	
+	publicationResponse := self publish: 'Hello' of: publisherUserResponse.
+	invalidLikerAsJson := Dictionary new
+		at: #userId put: '';
+		yourself.
+	likeResponse := receptionist 
+		publicationIdentifiedAs: (self publicationIdFrom: publicationResponse)
+		likedBy: (invalidLikerAsJson).
+
+	self assert: (likeResponse hasStatus: 400).
+	self assert: RestReceptionist invalidCredentials equals: likeResponse body.! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 20:58:07'!
+test16_canNotLikeNotPublishedPublication
+
+	| likeResponse publisherUserResponse |
+	
+	receptionist := self createReceptionist.
+	publisherUserResponse := self registerJuanPerez.
+	
+	likeResponse := receptionist 
+		publicationIdentifiedAs: ''
+		likedBy: (self likerAsJsonOf: publisherUserResponse).
+
+	self assert: (likeResponse hasStatus: 400).
+	self assert: RestReceptionist invalidPublication equals: likeResponse body.! !
+
+!RestReceptionistTest methodsFor: 'tests' stamp: 'HAW 11/28/2020 21:01:50'!
+test17_timelineIncludesLikes
+
+	| publicationResponse registeredUserResponse timelineResponse body likerUserResponse |
+	
+	receptionist := self createReceptionist.
+	registeredUserResponse := self registerJuanPerez.
+	likerUserResponse := self registerPepeSanchez.
+
+	publicationResponse := self publish: 'hello' of: registeredUserResponse.
+	receptionist 
+		publicationIdentifiedAs: (self publicationIdFrom: publicationResponse)
+		likedBy: (self likerAsJsonOf: likerUserResponse).
+	
+	timelineResponse := receptionist timelineOf: registeredUserResponse idFromBody.
+
+	self assert: (timelineResponse hasStatus: 200).
+	body := timelineResponse body.
+	self assert: 1 equals: body size.
+	self assert: 1 equals: (body first at: #likes)
+
+	! !
+
+!RestReceptionistTest methodsFor: 'assertions' stamp: 'HAW 11/25/2020 19:13:11'!
+assertIsArrayWithJuanPerezOnly: aResponse 
+	
+	self assert: (aResponse hasStatus: 200).
+	self assert: 1 equals: aResponse body size.
+	self assertJuanPerezJsonIs: aResponse body first! !
+
+!RestReceptionistTest methodsFor: 'assertions' stamp: 'HAW 11/25/2020 19:12:04'!
+assertJuanPerezIn: aResponse withStatus: aStatus
+
+	self assert: (aResponse hasStatus: aStatus).
+	self assertJuanPerezJsonIs: aResponse body
+       ! !
+
+!RestReceptionistTest methodsFor: 'assertions' stamp: 'HAW 11/28/2020 19:17:01'!
+assertJuanPerezJsonIs: aBodyAsJson
+
+	self deny: (aBodyAsJson at: #id) isEmpty.
+	self assert: testObjects juanPerezName 	equals: (aBodyAsJson at: #username).
+	self assert: testObjects juanPerezAbout 	equals: (aBodyAsJson at: #about).
+	self assert: testObjects juanPerezHomePage 	equals: (aBodyAsJson at: #homePage).
+	self deny: (aBodyAsJson includesKey: #password)! !
+
+!RestReceptionistTest methodsFor: 'test objects' stamp: 'HAW 11/25/2020 11:02:46'!
+createReceptionist
+	
+	^RestReceptionist for: (OpenChatSystem timingWith: testObjects clock)! !
+
+!RestReceptionistTest methodsFor: 'test objects' stamp: 'HAW 11/25/2020 20:58:23'!
+formattedNow
+	
+	"Esto no esta bien porque esta usando lo mismo que está testeando, pero lo hago así por una cuestion de tiempo - Hernan"
+	^receptionist formatDateTime: testObjects now
+! !
+
+!RestReceptionistTest methodsFor: 'test objects' stamp: 'HAW 11/28/2020 20:46:06'!
+likerAsJsonOf: aReceptionistResponse 
+	
+	^Dictionary new
+		at: #userId put: aReceptionistResponse idFromBody;
+		yourself! !
+
+!RestReceptionistTest methodsFor: 'test objects' stamp: 'HAW 11/28/2020 20:45:10'!
+publicationIdFrom: aReceptionistResponse 
+	
+	^aReceptionistResponse body at: #postId! !
+
+!RestReceptionistTest methodsFor: 'test objects' stamp: 'HAW 11/25/2020 20:27:58'!
+publish: aMessage of: aUserRegistrationResponse
+
+	| publisherId |
+
+	publisherId := aUserRegistrationResponse idFromBody.
+	
+	^receptionist addPublication: (testObjects publicationBodyAsJsonFor: aMessage) of: publisherId
+                
+                ! !
+
+!RestReceptionistTest methodsFor: 'registration' stamp: 'HAW 11/28/2020 19:14:21'!
+makePepeSanchezFollowJuanPerezAndAssert: assertionsBlock
+
+	| followedResponse followerResponse followingsBodyAsJson response |
+	receptionist := self createReceptionist.
+	followedResponse := self registerPepeSanchez.
+	followerResponse := self registerJuanPerez.
+
+        followingsBodyAsJson := Dictionary new
+		at: #followerId put: followedResponse idFromBody;
+		at: #followeeId put: followerResponse idFromBody;
+		yourself.
+		
+	response := receptionist followings: followingsBodyAsJson.
+	assertionsBlock value: response value: followingsBodyAsJson value: followedResponse value: followerResponse! !
+
+!RestReceptionistTest methodsFor: 'registration' stamp: 'HAW 11/25/2020 11:04:10'!
+registerJuanPerez
+	
+	^receptionist registerUser: testObjects juanPerezRegistrationBodyAsJson! !
+
+!RestReceptionistTest methodsFor: 'registration' stamp: 'HAW 11/25/2020 19:48:12'!
+registerPepeSanchez
+	
+	^receptionist registerUser: testObjects pepeSanchezRegistrationBodyAsJson! !
+
+!RestReceptionistTest methodsFor: 'setUp' stamp: 'HAW 11/25/2020 11:03:12'!
+setUp
+
+	testObjects := TestObjectsBucket new! !
+
 !UserTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 15:51:11'!
 test01_canNotCreateUserWithBlankName
 
@@ -757,36 +1196,196 @@ registerUserIn: aSystem
 	
 	aSystem registerUserNamed: userName authenticatedWith: userName with: userName,userName,userName at: 'www.10pines.com'! !
 
-!ManualClock methodsFor: 'initialization' stamp: 'HAW 11/22/2020 19:57:49'!
-initializeAtNow: aNow 
+!LoadExampleWithReceptionist methodsFor: 'load' stamp: 'HAW 11/28/2020 21:51:01'!
+loadOn: aSystem with: aNumberOfUsers followers: aNumberOfFollowers publications: aNumberOfPublications
+
+"
+	Inspeccionar la siguiente linea:
+	self new loadOn: (OpenChatSystem timingWith: DateAndTime) with: 1000 followers: 20 publications: 300
+"
+
+	| startStats endStats elapseTime receptionist |
 	
-	now := aNow.! !
+	Smalltalk garbageCollect.
+	startStats := Utilities vmStatisticsReportString.
+	
+	userNamePrefix := 'AAAAA'.
+	followers := OrderedCollection new.
+	receptionist := RestReceptionist for: aSystem.
+	
+	elapseTime := Time millisecondsToRun: [
+		1 to: aNumberOfUsers do: [ :currentUserIndex | | userId |
+			self createUserNameWith: currentUserIndex.
+			userId := self registerUserIn: receptionist.
+			self addFollowers: aNumberOfFollowers to: userId in: receptionist.
+			self addPublications: aNumberOfPublications of: userId in: receptionist.
+			self calculateUserNamePrefix: currentUserIndex ]].
+	
+	Smalltalk garbageCollect.	
+	endStats := Utilities vmStatisticsReportString.
+	
+	^Array with: elapseTime with: startStats with: endStats ! !
 
-!ManualClock methodsFor: 'time' stamp: 'HAW 11/22/2020 19:59:47'!
-advanceTimeBy: aDelta
+!LoadExampleWithReceptionist methodsFor: 'load - private' stamp: 'HAW 11/28/2020 21:45:55'!
+addFollowers: aNumberOfFollowers to: aUserId in: aReceptionist 
+	
+	followers do: [:aFollower | aReceptionist followings: (Dictionary new
+		at: #followerId put: aUserId;
+		at: #followeeId put: aFollower;
+		yourself) ].
+	
+	followers add: aUserId.
+	followers size > aNumberOfFollowers ifTrue: [ followers removeFirst ].! !
 
-	now := now next: aDelta 
+!LoadExampleWithReceptionist methodsFor: 'load - private' stamp: 'HAW 11/28/2020 21:48:57'!
+addPublications: aNumberOfPublications of: aUserId in: aReceptionist
+	
+	| publicationMessage |
+	
+	publicationMessage := String streamContents: [ :stream |
+		userName size timesRepeat: [ stream nextPutAll: userName ]].
+	
+	aNumberOfPublications timesRepeat: [ 
+		aReceptionist 
+			addPublication: (Dictionary new
+				at: #text put: publicationMessage copy;
+				yourself)
+		 	of: aUserId ]! !
+
+!LoadExampleWithReceptionist methodsFor: 'load - private' stamp: 'HAW 11/28/2020 21:39:08'!
+calculateUserNamePrefix: currentUserIndex
+	
+	currentUserIndex \\ 26 = 0 ifTrue: [ userNamePrefix := userNamePrefix , 'A' ].! !
+
+!LoadExampleWithReceptionist methodsFor: 'load - private' stamp: 'HAW 11/28/2020 21:39:08'!
+createUserNameWith: currentUserIndex
+	
+	userName := userNamePrefix,(Character asciiValue: `$A asciiValue` + currentUserIndex \\ 26) asString
+	
 	! !
 
-!ManualClock methodsFor: 'time' stamp: 'HAW 11/22/2020 20:00:22'!
-now
+!LoadExampleWithReceptionist methodsFor: 'load - private' stamp: 'HAW 11/28/2020 21:50:04'!
+registerUserIn: aReceptionist
 	
-	^now! !
+	^(aReceptionist registerUser: (
+		Dictionary new
+			at: #username put: userName;
+			at: #password put: userName;
+			at: #about put: userName,userName,userName;
+			at: #homePage put: 'www.10pines.com';
+			yourself)) idFromBody ! !
 
-!ManualClock class methodsFor: 'instance creation' stamp: 'HAW 11/22/2020 19:57:43'!
-atNow: aNow
+!OpenChatServer methodsFor: 'initialization' stamp: 'HAW 11/29/2020 00:39:31'!
+initializeOn: aReceptionist 
+	
+	receptionist := aReceptionist.! !
 
-	^self new initializeAtNow: aNow! !
+!OpenChatServer methodsFor: 'rest interface' stamp: 'HAW 11/29/2020 01:25:25'!
+followings: aRequest
 
-!OpenChatSystem methodsFor: 'assertions' stamp: 'HAW 11/22/2020 17:38:38'!
+	| response |
+	
+	response := aRequest isPostRequest 
+		ifTrue: [ receptionist followings: (Json readFrom: aRequest stream) ]
+		ifFalse: [ receptionist followersOf: (aRequest url asPathTokens) second ].
+		
+	aRequest sendResponseCode: response status content: response bodyAsString type: 'application/json' do: [ :r | ] 
+! !
+
+!OpenChatServer methodsFor: 'rest interface' stamp: 'HAW 11/29/2020 01:25:30'!
+login: aRequest
+
+	| response |
+	
+	response := receptionist login: (Json readFrom: aRequest stream).
+		
+	aRequest sendResponseCode: response status content: response bodyAsString type: 'application/json' do: [ :r | ] 
+! !
+
+!OpenChatServer methodsFor: 'rest interface' stamp: 'HAW 11/29/2020 01:25:35'!
+publications: aRequest
+
+	| response |
+	
+	response :=receptionist publicationIdentifiedAs: (aRequest url asPathTokens) second likedBy: (Json readFrom: aRequest stream).
+		
+	aRequest sendResponseCode: response status content: response bodyAsString type: 'application/json' do: [ :r | ] 
+! !
+
+!OpenChatServer methodsFor: 'rest interface' stamp: 'HAW 11/29/2020 01:28:45'!
+reset: aRequest
+
+	receptionist := self class defaultReceptionist.
+	
+	aRequest send200Response: 'reseted'! !
+
+!OpenChatServer methodsFor: 'rest interface' stamp: 'HAW 11/29/2020 01:52:58'!
+users: aRequest
+
+	| response |
+
+	response := aRequest isPostRequest 
+		ifTrue: [ 
+			(aRequest url endsWith: 'timeline')
+				ifTrue: [ receptionist addPublication: (Json readFrom: aRequest stream) of: (aRequest url asPathTokens) second ]
+				ifFalse: [ receptionist registerUser: (Json readFrom: aRequest stream) ]]
+		ifFalse: [ 
+			(aRequest url endsWith: 'timeline')
+				ifTrue: [  receptionist timelineOf: (aRequest url asPathTokens) second ]
+				ifFalse: [ (aRequest url endsWith: 'wall')
+					ifTrue: [  receptionist wallOf: (aRequest url asPathTokens) second ]
+					ifFalse: [ receptionist users ]]].
+		
+	aRequest sendResponseCode: response status content: response bodyAsString type: 'application/json' do: [ :r | ] 
+! !
+
+!OpenChatServer class methodsFor: 'instance creation' stamp: 'HAW 11/29/2020 01:25:11'!
+on: aReceptionist 
+
+	^self new initializeOn: aReceptionist ! !
+
+!OpenChatServer class methodsFor: 'installation' stamp: 'HAW 11/29/2020 01:53:15'!
+defaultReceptionist
+
+	^ RestReceptionist for: (OpenChatSystem timingWith: DateAndTime)! !
+
+!OpenChatServer class methodsFor: 'installation' stamp: 'HAW 11/29/2020 01:28:07'!
+installForDefaultSystem
+
+	"self installForDefaultSystem"
+	
+	| server port interface |
+	
+	interface := self on: self defaultReceptionist.
+	
+	"Esto es para poder acceder a la interface de manera global - Hernan"
+	Smalltalk at: #OpenChatRestReceptionist put: interface.
+	
+	port := 4321.
+	server := WebServer reset default.
+	server listenOn: port.
+	server 
+		addService: '/reset' 
+		action: [:request | interface reset: request ].
+	server 
+		addService: '/users' 
+		action: [:request | interface users: request ].
+	server 
+		addService: '/login' 
+		action: [:request | interface login: request ].
+	server
+		addService: '/followings' 
+		action: [:request | interface followings: request ].
+	server
+		addService: '/publications' 
+		action: [:request | interface publications: request ].
+	
+	server useDebugErrorHandler ! !
+
+!OpenChatSystem methodsFor: 'assertions' stamp: 'HAW 11/25/2020 18:49:51'!
 assertIsNotDuplicated: aUserName
 
-	(self hasUserNamed: aUserName) ifTrue: [ ModelException signal: self canNotRegisterSameUserTwice ]! !
-
-!OpenChatSystem methodsFor: 'assertions' stamp: 'HAW 11/22/2020 17:38:51'!
-canNotRegisterSameUserTwice
-	
-	^'Username already in use.'! !
+	(self hasUserNamed: aUserName) ifTrue: [ ModelException signal: self class canNotRegisterSameUserTwice ]! !
 
 !OpenChatSystem methodsFor: 'assertions' stamp: 'HAW 11/22/2020 20:21:34'!
 invalidPublication
@@ -902,6 +1501,11 @@ userNamed: aFollowerUserName follows: aFollowedUserName
 	
 	followed followedBy: follower! !
 
+!OpenChatSystem methodsFor: 'users' stamp: 'HAW 11/25/2020 19:04:10'!
+users
+	
+	^userCards values collect: [ :aUserCard | aUserCard user ]! !
+
 !OpenChatSystem methodsFor: 'users - private' stamp: 'HAW 11/22/2020 20:29:21'!
 publisherForUserNamed: aUserName
 
@@ -914,6 +1518,11 @@ publisherForUserNamed: aUserName
 timingWith: aClock 
 	
 	^self new initializeTimingWith: aClock ! !
+
+!OpenChatSystem class methodsFor: 'assertions' stamp: 'HAW 11/25/2020 18:49:41'!
+canNotRegisterSameUserTwice
+	
+	^'Username already in use.'! !
 
 !Publication methodsFor: 'initialization' stamp: 'HAW 11/22/2020 16:37:10'!
 initializeMadeBy: aPublisher about: aMessage at: aPublicationTime 
@@ -932,7 +1541,7 @@ hasMessage: aMessage
 
 	^message = aMessage ! !
 
-!Publication methodsFor: 'testing' stamp: 'HAW 11/22/2020 20:05:26'!
+!Publication methodsFor: 'testing' stamp: 'HAW 11/29/2020 01:40:28'!
 wasPublishedAfter: aPublication 
 	
 	^publicationTime >= aPublication publicationTime! !
@@ -941,6 +1550,16 @@ wasPublishedAfter: aPublication
 wasPublishedAt: aPotentialPublicationTime
 
 	^publicationTime = aPotentialPublicationTime ! !
+
+!Publication methodsFor: 'message' stamp: 'HAW 11/25/2020 20:43:07'!
+message
+	
+	^message! !
+
+!Publication methodsFor: 'publisher' stamp: 'HAW 11/28/2020 20:39:04'!
+publisherRelatedUser
+	
+	^publisher relatedUser ! !
 
 !Publication class methodsFor: 'instance creation' stamp: 'HAW 11/22/2020 17:06:22'!
 madeBy: aPublisher about: aMessage at: aPublicationTime 
@@ -972,20 +1591,15 @@ hasInappropriateWord: aMessage
 	lowercaseMessage := aMessage asLowercase.
 	^self inappropriatedWords anySatisfy: [ :innappropriateWord | lowercaseMessage includesSubString: innappropriateWord ].! !
 
-!Publisher methodsFor: 'assertions' stamp: 'HAW 11/22/2020 19:47:48'!
+!Publisher methodsFor: 'assertions' stamp: 'HAW 11/25/2020 20:12:49'!
 assertCanNotBeFollowedBySameFollowerTwice: aPotentialFollower
 
-	(self isFollowedBy: aPotentialFollower) ifTrue: [ ModelException signal: self canNotBeFollowedBySameFollowerTwice ]! !
+	(self isFollowedBy: aPotentialFollower) ifTrue: [ ModelException signal: self class canNotBeFollowedBySameFollowerTwice ]! !
 
 !Publisher methodsFor: 'assertions' stamp: 'HAW 11/22/2020 19:47:57'!
 assertCanNotFollowSelf: aPotentialFollower
  
 	self = aPotentialFollower ifTrue: [ ModelException signal: self canNotFollowSelf ]! !
-
-!Publisher methodsFor: 'assertions' stamp: 'HAW 11/22/2020 19:45:43'!
-canNotBeFollowedBySameFollowerTwice
-	
-	^'Can not follow publisher twice'! !
 
 !Publisher methodsFor: 'assertions' stamp: 'HAW 11/22/2020 16:25:52'!
 canNotFollowSelf
@@ -1079,15 +1693,274 @@ relatedTo: aUser
 	
 	^self new initializeRelatedTo: aUser ! !
 
+!Publisher class methodsFor: 'assertions' stamp: 'HAW 11/25/2020 20:12:37'!
+canNotBeFollowedBySameFollowerTwice
+	
+	^'Can not follow publisher twice'! !
+
+!ReceptionistResponse methodsFor: 'initialization' stamp: 'HAW 11/25/2020 18:48:09'!
+initializeStatus: aStatus body: aBody 
+	
+	status := aStatus.
+	body := aBody.! !
+
+!ReceptionistResponse methodsFor: 'body' stamp: 'HAW 11/25/2020 18:48:22'!
+body
+	
+	^body! !
+
+!ReceptionistResponse methodsFor: 'body' stamp: 'HAW 11/29/2020 00:31:57'!
+bodyAsString
+
+	^body isString 
+		ifTrue: [ body ]
+		ifFalse: [ body asJsonString ]! !
+
+!ReceptionistResponse methodsFor: 'body' stamp: 'HAW 11/28/2020 19:18:06'!
+idFromBody
+	
+	^body at: #id! !
+
+!ReceptionistResponse methodsFor: 'status' stamp: 'HAW 11/25/2020 18:35:26'!
+hasStatus: aStatus
+
+	^status = aStatus ! !
+
+!ReceptionistResponse methodsFor: 'status' stamp: 'HAW 11/29/2020 00:30:06'!
+status
+	
+	^status! !
+
+!ReceptionistResponse class methodsFor: 'instance creation' stamp: 'HAW 11/25/2020 18:48:31'!
+status: aStatus body: aBody 
+	
+	^self new initializeStatus: aStatus body: aBody ! !
+
+!RestReceptionist methodsFor: 'followers' stamp: 'HAW 11/28/2020 21:14:48'!
+followersOf: aUserId
+
+	^self handleModelExceptionWhile: [
+		self okResponseWithUserArrayFrom: (system followersOfUserNamed: (self userNameFrom: aUserId))]! !
+
+!RestReceptionist methodsFor: 'followers' stamp: 'HAW 11/28/2020 21:17:10'!
+followings: aFollowingsBodyAsJson
+
+	^self handleModelExceptionWhile: [ 
+		| followedId followerId |	
+		
+		followedId := aFollowingsBodyAsJson at: #followerId.
+		followerId := aFollowingsBodyAsJson at: #followeeId.
+
+		system userNamed: (self userNameFrom: followerId) follows: (self userNameFrom: followedId).
+		ReceptionistResponse status: 201 body: self class followingsCreated ]! !
+
+!RestReceptionist methodsFor: 'initialization' stamp: 'HAW 11/28/2020 21:56:27'!
+initializeFor: anOpenChatSystem 
+	
+	system := anOpenChatSystem.
+	idsByUser := Dictionary new.
+	userNameById := Dictionary new.
+	idsByPublication := Dictionary new.! !
+
+!RestReceptionist methodsFor: 'publications' stamp: 'HAW 11/28/2020 21:17:04'!
+addPublication: aMessageAsJson of: aUserId
+
+	^self handleModelExceptionWhile: [ 
+		| publication publicationId |
+		
+		publication := system publish: (aMessageAsJson at: #text) forUserNamed: (self userNameFrom: aUserId).
+		publicationId := self generateId.
+		idsByPublication at: publication put: publicationId.
+
+	        ReceptionistResponse status: 201 body: (self publicationAsJson: publication ) ]
+		! !
+
+!RestReceptionist methodsFor: 'publications' stamp: 'HAW 11/28/2020 21:17:21'!
+publicationIdentifiedAs: aPostId likedBy: aLikerAsJson
+
+	^self handleModelExceptionWhile: [ 
+		| publication userName body likes |
+		
+		publication := self publicationIdentifiedAs: aPostId.
+		userName := self userNameFrom: (aLikerAsJson at: #userId).
+		
+		likes := system liked: publication by: userName.
+		body := Dictionary new
+			at: #likes put: likes;
+			yourself.
+			
+		ReceptionistResponse status: 200 body: body]
+		! !
+
+!RestReceptionist methodsFor: 'publications' stamp: 'HAW 11/28/2020 21:55:43'!
+timelineOf: aUserId 
+	
+	^self handleModelExceptionWhile: [
+		| timeline timelineAsJson |	
+		
+		timeline := system timelineOfUserNamed: (self userNameFrom: aUserId).
+		timelineAsJson := self publicationsAsJsonOf: timeline for: aUserId.
+		
+		ReceptionistResponse status: 200 body: timelineAsJson ]
+! !
+
+!RestReceptionist methodsFor: 'publications' stamp: 'HAW 11/28/2020 21:55:51'!
+wallOf: aUserId
+
+	^self handleModelExceptionWhile: [
+		| wall |
+		
+		wall := system wallOfUserNamed: (self userNameFrom: aUserId).
+		
+		ReceptionistResponse status: 200 body: (self publicationsAsJsonOf: wall for: aUserId) ]
+		! !
+
+!RestReceptionist methodsFor: 'publications - private' stamp: 'HAW 11/29/2020 01:49:44'!
+formatDateTime: aDateTime 
+	
+"yyyy-MM-ddTHH:mm:ssZ'"
+
+	| dateTimeString |
+
+	dateTimeString := String streamContents: [ :stream | aDateTime printWithoutOffsetOn: stream ].
+	dateTimeString at: 20 put: $Z.
+	
+	^dateTimeString first: 20
+	
+		
+		! !
+
+!RestReceptionist methodsFor: 'publications - private' stamp: 'HAW 11/29/2020 01:19:58'!
+publicationAsJson: aPublication  
+
+	^OrderedDictionary new
+		at: #postId put: (idsByPublication at: aPublication);
+		at: #userId put: (self userIdFor: aPublication publisherRelatedUser);
+		at: #text put: aPublication message;
+		at: #dateTime put: (self formatDateTime: aPublication publicationTime);
+		at: #likes put: (system likesOf: aPublication);
+		yourself ! !
+
+!RestReceptionist methodsFor: 'publications - private' stamp: 'HAW 11/28/2020 20:59:07'!
+publicationIdentifiedAs: aPublicationId
+
+	idsByPublication keysAndValuesDo: [ :publication :id | aPublicationId = id ifTrue: [ ^publication ]].
+	
+	ModelException signal: self class invalidPublication ! !
+
+!RestReceptionist methodsFor: 'publications - private' stamp: 'HAW 11/28/2020 20:39:52'!
+publicationsAsJsonOf: timeline for: aUserId
+
+	^ timeline collect: [ :aPublication | self publicationAsJson: aPublication ]! !
+
+!RestReceptionist methodsFor: 'users' stamp: 'HAW 11/28/2020 19:17:25'!
+login: aLoginBodyAsJson
+
+	^system 
+		authenticate: (aLoginBodyAsJson at: #username)
+		with: (aLoginBodyAsJson at: #password)
+		andDo: [ :authenticatedUser | 
+			ReceptionistResponse 
+				status: 200 
+				body: (self userResponseAsJsonFor: authenticatedUser identifiedAs: (self userIdFor: authenticatedUser)) ]
+		ifFail: [ ReceptionistResponse 
+				status: 400
+				body: self class invalidCredentials ]! !
+
+!RestReceptionist methodsFor: 'users' stamp: 'HAW 11/29/2020 00:35:04'!
+registerUser: aRegistrationBodyAsJson
+
+	^self handleModelExceptionWhile: [ 
+		| registeredUserId user |
+		
+		user := system 
+			registerUserNamed: (aRegistrationBodyAsJson at: #username)
+			authenticatedWith: (aRegistrationBodyAsJson at: #password)
+			with: (aRegistrationBodyAsJson at: #about)
+			at: (aRegistrationBodyAsJson at: #homePage).
+			
+		registeredUserId := self generateId.
+		idsByUser at: user put: registeredUserId.
+		userNameById at: registeredUserId put: user name.
+		
+		ReceptionistResponse status: 201 body: (self userResponseAsJsonFor: user identifiedAs: registeredUserId) ]
+		! !
+
+!RestReceptionist methodsFor: 'users' stamp: 'HAW 11/25/2020 19:03:10'!
+users
+	
+	^self okResponseWithUserArrayFrom: system users ! !
+
+!RestReceptionist methodsFor: 'users - private' stamp: 'HAW 11/25/2020 19:09:27'!
+okResponseWithUserArrayFrom: aCollectionOfUsers
+
+	^ReceptionistResponse 
+		status: 200
+		body: (aCollectionOfUsers collect: [ :aUser | self userResponseAsJsonFor: aUser identifiedAs: (self userIdFor: aUser) ]).! !
+
+!RestReceptionist methodsFor: 'users - private' stamp: 'HAW 11/25/2020 18:56:30'!
+userIdFor: aUser 
+	
+	^idsByUser at: aUser ! !
+
+!RestReceptionist methodsFor: 'users - private' stamp: 'HAW 11/28/2020 21:57:20'!
+userNameFrom: anId
+
+	^userNameById 
+		at: anId 
+		ifAbsent: [ ModelException signal: self class invalidCredentials ]! !
+
+!RestReceptionist methodsFor: 'users - private' stamp: 'HAW 11/29/2020 01:18:59'!
+userResponseAsJsonFor: aRegisteredUser identifiedAs: anId 
+	
+	^OrderedDictionary new
+		at: #id put: anId;
+		at: #username put: aRegisteredUser name;
+		at: #about put: aRegisteredUser about;
+		at: #homePage put: aRegisteredUser homePage; 
+		yourself ! !
+
+!RestReceptionist methodsFor: 'private' stamp: 'HAW 11/25/2020 16:47:33'!
+generateId
+	
+	^UUID new asString! !
+
+!RestReceptionist methodsFor: 'private' stamp: 'HAW 11/28/2020 21:11:58'!
+handleModelExceptionWhile: aBlock
+
+	^aBlock
+		on: ModelException 
+		do: [ :error | error return: (ReceptionistResponse status: 400 body: error messageText) ]! !
+
+!RestReceptionist class methodsFor: 'instance creation' stamp: 'HAW 11/25/2020 11:03:24'!
+for: anOpenChatSystem 
+	
+	^self new initializeFor: anOpenChatSystem ! !
+
+!RestReceptionist class methodsFor: 'as yet unclassified' stamp: 'HAW 11/25/2020 20:08:59'!
+followingsCreated
+	
+	^'Following created.'! !
+
+!RestReceptionist class methodsFor: 'as yet unclassified' stamp: 'HAW 11/25/2020 18:59:15'!
+invalidCredentials
+	
+	^'Invalid credentials.'! !
+
+!RestReceptionist class methodsFor: 'as yet unclassified' stamp: 'HAW 11/28/2020 20:58:20'!
+invalidPublication
+	
+	^'Invalid publication'! !
+
 !TestObjectsBucket methodsFor: 'time' stamp: 'HAW 11/22/2020 19:59:53'!
 advanceTimeBy: aDelta
 
 	^self clock advanceTimeBy: aDelta ! !
 
-!TestObjectsBucket methodsFor: 'time' stamp: 'HAW 11/22/2020 19:57:15'!
+!TestObjectsBucket methodsFor: 'time' stamp: 'HAW 11/29/2020 01:49:13'!
 clock
 	
-	^clock ifNil: [ clock := ManualClock atNow: GregorianDateTime now ]! !
+	^clock ifNil: [ clock := ManualClock atNow: DateAndTime now ]! !
 
 !TestObjectsBucket methodsFor: 'time' stamp: 'HAW 11/22/2020 20:21:20'!
 now
@@ -1109,6 +1982,14 @@ juanPerezHomePage
 	
 	^'www.something.com'! !
 
+!TestObjectsBucket methodsFor: 'juan perez' stamp: 'HAW 11/28/2020 19:14:37'!
+juanPerezLoginBodyAsJson
+	
+	^Dictionary new 
+		at: #username put: self juanPerezName;
+		at: #password put: self juanPerezPassword;
+		yourself! !
+
 !TestObjectsBucket methodsFor: 'juan perez' stamp: 'HAW 11/22/2020 16:19:33'!
 juanPerezName
 	
@@ -1118,6 +1999,14 @@ juanPerezName
 juanPerezPassword
 	
 	^'juanPerezPassword'! !
+
+!TestObjectsBucket methodsFor: 'juan perez' stamp: 'HAW 11/28/2020 19:15:24'!
+juanPerezRegistrationBodyAsJson
+	
+	^self juanPerezLoginBodyAsJson
+		at: #about put: self juanPerezAbout;
+		at: #homePage put: self juanPerezHomePage;
+		yourself! !
 
 !TestObjectsBucket methodsFor: 'pepe sanchez' stamp: 'HAW 11/22/2020 16:08:55'!
 createPepeSanchez
@@ -1135,6 +2024,14 @@ pepeSanchezHomePage
 	
 	^'www.10pines.com'! !
 
+!TestObjectsBucket methodsFor: 'pepe sanchez' stamp: 'HAW 11/28/2020 19:14:53'!
+pepeSanchezLoginBodyAsJson
+	
+	^Dictionary new 
+		at: #username put: self pepeSanchezName;
+		at: #password put: self pepeSanchezPassword;
+		yourself! !
+
 !TestObjectsBucket methodsFor: 'pepe sanchez' stamp: 'HAW 11/22/2020 16:09:07'!
 pepeSanchezName
 	
@@ -1144,6 +2041,21 @@ pepeSanchezName
 pepeSanchezPassword
 	
 	^'pepeSanchezPassword'! !
+
+!TestObjectsBucket methodsFor: 'pepe sanchez' stamp: 'HAW 11/28/2020 19:17:59'!
+pepeSanchezRegistrationBodyAsJson
+	
+	^self pepeSanchezLoginBodyAsJson
+		at: #about put: self pepeSanchezAbout;
+		at: #homePage put: self pepeSanchezHomePage;
+		yourself! !
+
+!TestObjectsBucket methodsFor: 'publications' stamp: 'HAW 11/28/2020 19:15:02'!
+publicationBodyAsJsonFor: aMessage
+
+	^Dictionary new
+		at: #text put: aMessage;
+		yourself ! !
 
 !User methodsFor: 'initialization' stamp: 'HAW 11/22/2020 15:52:26'!
 initializeNamed: aName about: anAbout at: aHomePage 
