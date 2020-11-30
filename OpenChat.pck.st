@@ -1,6 +1,6 @@
-'From Cuis 5.0 [latest update: #4384] on 29 November 2020 at 1:57:08 am'!
-'Description Recepcionista y WebServer '!
-!provides: 'OpenChat' 1 2!
+'From Cuis 5.0 [latest update: #4384] on 30 November 2020 at 2:35:31 am'!
+'Description Algunos cambios de compatibilidad'!
+!provides: 'OpenChat' 1 3!
 !requires: 'Identities-UUID' 1 8 nil!
 !requires: 'WebClient' 1 19 nil!
 !requires: 'JSON' 1 19 nil!
@@ -55,6 +55,26 @@ TestCase subclass: #UserTest
 	category: 'OpenChat'!
 !classDefinition: 'UserTest class' category: 'OpenChat'!
 UserTest class
+	instanceVariableNames: ''!
+
+!classDefinition: #Clock category: 'OpenChat'!
+Object subclass: #Clock
+	instanceVariableNames: ''
+	classVariableNames: ''
+	poolDictionaries: ''
+	category: 'OpenChat'!
+!classDefinition: 'Clock class' category: 'OpenChat'!
+Clock class
+	instanceVariableNames: ''!
+
+!classDefinition: #ManualClock category: 'OpenChat'!
+Clock subclass: #ManualClock
+	instanceVariableNames: 'now'
+	classVariableNames: ''
+	poolDictionaries: ''
+	category: 'OpenChat'!
+!classDefinition: 'ManualClock class' category: 'OpenChat'!
+ManualClock class
 	instanceVariableNames: ''!
 
 !classDefinition: #LoadExample category: 'OpenChat'!
@@ -168,7 +188,7 @@ UserCard class
 	instanceVariableNames: ''!
 
 
-!Publication methodsFor: 'as yet unclassified' stamp: 'HAW 11/29/2020 01:37:20'!
+!Publication methodsFor: 'as yet unclassified' stamp: 'HAW 11/29/2020 22:17:06'!
 printOn: aStream
 
 	aStream
@@ -528,13 +548,13 @@ test05_createdPusblisherHasNoPublications
 	self deny: createdPusblisher hasPublications
 	! !
 
-!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 16:38:33'!
+!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/29/2020 20:08:15'!
 test06_publisherCanPublishMessages
 
 	| createdPusblisher message publication publicationTime |
 	
 	createdPusblisher := self createPepeSanchez.
-	publicationTime := GregorianDateTime now.
+	publicationTime := DateAndTime now.
 	message := 'a message'.
 	
 	publication := createdPusblisher publish: message at: publicationTime.
@@ -544,7 +564,7 @@ test06_publisherCanPublishMessages
 	self assert: (publication wasPublishedAt: publicationTime).
 	
 	self deny: (publication hasMessage: message,'x').
-	self deny: (publication wasPublishedAt: (publicationTime next: 1*second)).
+	self deny: (publication wasPublishedAt: publicationTime + (Duration seconds: 1)).
 	! !
 
 !PublisherTest methodsFor: 'tests' stamp: 'HAW 11/29/2020 01:51:00'!
@@ -626,14 +646,14 @@ test10_wallContainsFollowersPublicationsWithLatestPublicationsFirst
 	self assert: firstPublication equals: timeline third.
 	! !
 
-!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 16:58:10'!
+!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/29/2020 20:08:27'!
 test11_canNotPublishWithInappropriateWord
 
 	| createdPublisher message publicationTime |
 	
 	createdPublisher := self createPepeSanchez.
 	
-	publicationTime := GregorianDateTime now.
+	publicationTime := DateAndTime now.
 	message := 'elephant'.
 	
 	self 
@@ -646,14 +666,14 @@ test11_canNotPublishWithInappropriateWord
 	
 	! !
 
-!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 17:00:22'!
+!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/29/2020 20:08:36'!
 test12_canNotPublishWithInappropriateWordInUpperCase
 
 	| createdPublisher message publicationTime |
 	
 	createdPublisher := self createPepeSanchez.
 	
-	publicationTime := GregorianDateTime now.
+	publicationTime := DateAndTime now.
 	message := 'ELEPHANT'.
 	
 	self 
@@ -666,14 +686,14 @@ test12_canNotPublishWithInappropriateWordInUpperCase
 	
 	! !
 
-!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 17:01:13'!
+!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/29/2020 20:08:42'!
 test13_canNotPublishAMessageContainingInappropriateWord
 
 	| createdPublisher message publicationTime |
 	
 	createdPublisher := self createPepeSanchez.
 	
-	publicationTime := GregorianDateTime now.
+	publicationTime := DateAndTime now.
 	message := 'abc ELEPHANT xx'.
 	
 	self 
@@ -686,14 +706,14 @@ test13_canNotPublishAMessageContainingInappropriateWord
 	
 	! !
 
-!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/22/2020 17:03:11'!
+!PublisherTest methodsFor: 'tests' stamp: 'HAW 11/29/2020 20:08:49'!
 test14_canNotPublishAnyInappropriateWord
 
 	| createdPublisher inappropriatedWords publicationTime |
 	
 	createdPublisher := self createPepeSanchez.
 	
-	publicationTime := GregorianDateTime now.
+	publicationTime := DateAndTime now.
 	inappropriatedWords := { 'elephant'. 'orange'. 'ice cream' }.
 	
 	inappropriatedWords do: [ :inappropriateWord |
@@ -1039,10 +1059,10 @@ createReceptionist
 	
 	^RestReceptionist for: (OpenChatSystem timingWith: testObjects clock)! !
 
-!RestReceptionistTest methodsFor: 'test objects' stamp: 'HAW 11/25/2020 20:58:23'!
+!RestReceptionistTest methodsFor: 'test objects' stamp: 'HAW 11/29/2020 20:03:11'!
 formattedNow
 	
-	"Esto no esta bien porque esta usando lo mismo que está testeando, pero lo hago así por una cuestion de tiempo - Hernan"
+	"Esto no esta bien porque esta usando lo mismo que esta testeando, pero lo hago asi por una cuestion de tiempo - Hernan"
 	^receptionist formatDateTime: testObjects now
 ! !
 
@@ -1131,6 +1151,32 @@ setUp
 
 	testObjects := TestObjectsBucket new! !
 
+!Clock methodsFor: 'time' stamp: 'HernanWilkinson 6/22/2013 14:23'!
+now
+
+	self subclassResponsibility ! !
+
+!ManualClock methodsFor: 'initialization' stamp: 'HAW 11/22/2020 19:57:49'!
+initializeAtNow: aNow 
+	
+	now := aNow.! !
+
+!ManualClock methodsFor: 'time' stamp: 'HAW 11/28/2020 21:20:38'!
+advanceTimeBy: aDelta
+
+	now := now + aDelta 
+	! !
+
+!ManualClock methodsFor: 'time' stamp: 'HernanWilkinson 6/22/2013 12:56'!
+now
+	
+	^ now! !
+
+!ManualClock class methodsFor: 'instance creation' stamp: 'HAW 11/22/2020 19:57:43'!
+atNow: aNow
+
+	^self new initializeAtNow: aNow! !
+
 !LoadExample methodsFor: 'load' stamp: 'HAW 11/25/2020 07:42:58'!
 loadOn: aSystem with: aNumberOfUsers followers: aNumberOfFollowers publications: aNumberOfPublications
 
@@ -1184,10 +1230,10 @@ calculateUserNamePrefix: currentUserIndex
 	
 	currentUserIndex \\ 26 = 0 ifTrue: [ userNamePrefix := userNamePrefix , 'A' ].! !
 
-!LoadExample methodsFor: 'load - private' stamp: 'HAW 11/24/2020 10:49:25'!
+!LoadExample methodsFor: 'load - private' stamp: 'HAW 11/29/2020 20:04:07'!
 createUserNameWith: currentUserIndex
 	
-	userName := userNamePrefix,(Character asciiValue: `$A asciiValue` + currentUserIndex \\ 26) asString
+	userName := userNamePrefix,(Character asciiValue: $A asciiValue + currentUserIndex \\ 26) asString
 	
 	! !
 
@@ -1257,10 +1303,10 @@ calculateUserNamePrefix: currentUserIndex
 	
 	currentUserIndex \\ 26 = 0 ifTrue: [ userNamePrefix := userNamePrefix , 'A' ].! !
 
-!LoadExampleWithReceptionist methodsFor: 'load - private' stamp: 'HAW 11/28/2020 21:39:08'!
+!LoadExampleWithReceptionist methodsFor: 'load - private' stamp: 'HAW 11/29/2020 20:04:14'!
 createUserNameWith: currentUserIndex
 	
-	userName := userNamePrefix,(Character asciiValue: `$A asciiValue` + currentUserIndex \\ 26) asString
+	userName := userNamePrefix,(Character asciiValue: $A asciiValue + currentUserIndex \\ 26) asString
 	
 	! !
 
@@ -1319,7 +1365,7 @@ reset: aRequest
 	
 	aRequest send200Response: 'reseted'! !
 
-!OpenChatServer methodsFor: 'rest interface' stamp: 'HAW 11/29/2020 01:52:58'!
+!OpenChatServer methodsFor: 'rest interface' stamp: 'HAW 11/30/2020 02:34:54'!
 users: aRequest
 
 	| response |
