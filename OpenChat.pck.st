@@ -1,6 +1,6 @@
-'From Cuis 5.0 [latest update: #4384] on 30 November 2020 at 2:35:31 am'!
-'Description Algunos cambios de compatibilidad'!
-!provides: 'OpenChat' 1 3!
+'From Cuis 5.0 [latest update: #4384] on 30 November 2020 at 9:06:02 pm'!
+'Description Arreglo de formatDateTime'!
+!provides: 'OpenChat' 1 4!
 !requires: 'Identities-UUID' 1 8 nil!
 !requires: 'WebClient' 1 19 nil!
 !requires: 'JSON' 1 19 nil!
@@ -1861,7 +1861,7 @@ wallOf: aUserId
 		ReceptionistResponse status: 200 body: (self publicationsAsJsonOf: wall for: aUserId) ]
 		! !
 
-!RestReceptionist methodsFor: 'publications - private' stamp: 'HAW 11/29/2020 01:49:44'!
+!RestReceptionist methodsFor: 'publications - private' stamp: 'HAW 11/30/2020 21:05:17'!
 formatDateTime: aDateTime 
 	
 "yyyy-MM-ddTHH:mm:ssZ'"
@@ -1869,7 +1869,9 @@ formatDateTime: aDateTime
 	| dateTimeString |
 
 	dateTimeString := String streamContents: [ :stream | aDateTime printWithoutOffsetOn: stream ].
-	dateTimeString at: 20 put: $Z.
+	dateTimeString size > 20 
+		ifTrue: [ dateTimeString at: 20 put: $Z ]
+		ifFalse: [ dateTimeString := dateTimeString , 'Z' ].
 	
 	^dateTimeString first: 20
 	
