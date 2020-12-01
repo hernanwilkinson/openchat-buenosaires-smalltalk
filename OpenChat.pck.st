@@ -1,6 +1,6 @@
-'From Cuis 5.0 [latest update: #4384] on 30 November 2020 at 9:06:02 pm'!
-'Description Arreglo de formatDateTime'!
-!provides: 'OpenChat' 1 4!
+'From Cuis 5.0 [latest update: #4384] on 1 December 2020 at 6:04:01 pm'!
+'Description Workspaces de tests de concurrencia como metodos de OpenChatServer'!
+!provides: 'OpenChat' 1 5!
 !requires: 'Identities-UUID' 1 8 nil!
 !requires: 'WebClient' 1 19 nil!
 !requires: 'JSON' 1 19 nil!
@@ -1427,6 +1427,95 @@ installForDefaultSystem
 		action: [:request | interface publications: request ].
 	
 	server useDebugErrorHandler ! !
+
+!OpenChatServer class methodsFor: 'as yet unclassified' stamp: 'HAW 12/1/2020 18:02:50'!
+concurrencyTestForGemStoneWorkspace
+
+| postId testObjects userId |
+
+OpenChatServer installForDefaultSystem .    
+
+WebServer reset .  
+
+testObjects := TestObjectsBucket new.
+(WebClient httpGet: 'http://localhost:4321/users') content.
+(WebClient httpGet: 'http://localhost:4322/users') content.
+
+(WebClient httpGet: 'http://localhost:4321/reset') content.
+(WebClient httpGet: 'http://localhost:4322/reset') content.
+
+"Para probar conflicto transaccional registrando usuarios con el mismo username.
+Tiene que quedar uno solo - Hernan"
+[(WebClient 
+	httpPost: 'http://localhost:4321/users' 
+	content: testObjects pepeSanchezRegistrationBodyAsJson asJsonString type: 'text/plain;') content inspect.	] fork.
+[(WebClient 
+	httpPost: 'http://localhost:4322/users' 
+	content: testObjects pepeSanchezRegistrationBodyAsJson asJsonString type: 'text/plain;') content inspect.	] fork.
+
+[(WebClient 
+	httpPost: 'http://localhost:4321/users' 
+	content: testObjects juanPerezRegistrationBodyAsJson asJsonString type: 'text/plain;') content inspect.	] fork.
+
+userId := '73b1c3cd-1b6b-40e1-8d03-360b94d44f7e'.
+(WebClient httpGet: 'http://localhost:4321/users/',userId,'/timeline') content.
+(WebClient httpPost: 'http://localhost:4321/users/',userId,'/timeline'
+	content: (Dictionary new at: #text put: 'Hola'; yourself) asJsonString type: 'text/plain') content.
+	
+"Para probar conflicto transaccional en publicationes, tienen que quedas la dos publicaciones pero con una diferencia
+de tiempo de 3 segundos - Hernan"
+[(WebClient httpPost: 'http://localhost:4321/users/',userId,'/timeline'
+	content: (Dictionary new at: #text put: 'Hola2'; yourself) asJsonString type: 'text/plain') content inspect. ] fork.
+[(WebClient httpPost: 'http://localhost:4322/users/',userId,'/timeline'
+	content: (Dictionary new at: #text put: 'Hola3'; yourself) asJsonString type: 'text/plain') content inspect. ] fork.
+
+postId := '46bf7df1-1271-45e2-86a7-3956d6464d92'.
+(WebClient httpPost: 'http://localhost:4321/publications/',postId,'/like'
+	content: (Dictionary new at: #userId put: userId; yourself) asJsonString type: 'text/plain') content.
+
+
+! !
+
+!OpenChatServer class methodsFor: 'as yet unclassified' stamp: 'HAW 12/1/2020 18:03:23'!
+concurrencyTestForJavaWorkspace
+
+| postId testObjects userId |
+"Para probar server Java"
+testObjects := TestObjectsBucket new.
+(WebClient httpGet: 'http://localhost:4321/users') content. 
+(WebClient httpGet: 'http://localhost:4321/reset') content.
+
+"Para probar conflicto transaccional registrando usuarios con el mismo username.
+Tiene que quedar uno solo - Hernan"
+[(WebClient 
+	httpPost: 'http://localhost:4321/users' 
+	content: testObjects pepeSanchezRegistrationBodyAsJson asJsonString type: 'text/plain;') content inspect.	] fork.
+[(WebClient 
+	httpPost: 'http://localhost:4321/users' 
+	content: testObjects pepeSanchezRegistrationBodyAsJson asJsonString type: 'text/plain;') content inspect.	] fork.
+
+[(WebClient 
+	httpPost: 'http://localhost:4321/users' 
+	content: testObjects juanPerezRegistrationBodyAsJson asJsonString type: 'text/plain;') content inspect.	] fork.
+
+userId := '73b1c3cd-1b6b-40e1-8d03-360b94d44f7e'.
+(WebClient httpGet: 'http://localhost:4321/users/',userId,'/timeline') content.
+(WebClient httpPost: 'http://localhost:4321/users/',userId,'/timeline'
+	content: (Dictionary new at: #text put: 'Hola'; yourself) asJsonString type: 'text/plain') content.
+	
+"Para probar conflicto transaccional en publicationes, tienen que quedas la dos publicaciones pero con una diferencia
+de tiempo de 3 segundos - Hernan"
+[(WebClient httpPost: 'http://localhost:4321/users/',userId,'/timeline'
+	content: (Dictionary new at: #text put: 'Hola2'; yourself) asJsonString type: 'text/plain') content inspect. ] fork.
+[(WebClient httpPost: 'http://localhost:4322/users/',userId,'/timeline'
+	content: (Dictionary new at: #text put: 'Hola3'; yourself) asJsonString type: 'text/plain') content inspect. ] fork.
+
+postId := '46bf7df1-1271-45e2-86a7-3956d6464d92'.
+(WebClient httpPost: 'http://localhost:4321/publications/',postId,'/like'
+	content: (Dictionary new at: #userId put: userId; yourself) asJsonString type: 'text/plain') content.
+
+
+! !
 
 !OpenChatSystem methodsFor: 'assertions' stamp: 'HAW 11/25/2020 18:49:51'!
 assertIsNotDuplicated: aUserName
